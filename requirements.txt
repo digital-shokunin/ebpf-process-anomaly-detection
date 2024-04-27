@@ -1,4 +1,4 @@
-bcc
-tensorflow-cpu
-pytorch
-scikit-learn
+bcc==0.1.10
+tensorflow-cpu==2.16.1
+pytorch==1.0.2
+scikit-learn==1.4.2
