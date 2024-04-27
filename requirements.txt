@@ -1,4 +1,5 @@
 bcc==0.1.10
 tensorflow-cpu==2.16.1
-pytorch==1.0.2
+torch==2.3.0
+torchvision==0.18
 scikit-learn==1.4.2
