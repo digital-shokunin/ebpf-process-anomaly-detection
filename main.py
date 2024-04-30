@@ -23,12 +23,17 @@ def learn_action(args):
 
     from lib import MAX_SYSCALLS
     from lib.ebpf import Probe
+    from lib.ebpf import ProbeChild
+    from lib.ebpf import ProbeAll
+
 
     if os.path.exists(args.data):
         print("%s already exists" % args.data)
         quit()
     
-    probe = Probe(args.pid)
+    #probe = Probe(args.pid)
+    #probe = ProbeChild(args.pid)
+    probe = ProbeAll(args.pid)
 
     print("learning from process %d (%s), saving data to %s ..." % (args.pid, probe.comm, args.data))
 

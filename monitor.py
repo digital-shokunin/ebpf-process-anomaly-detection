@@ -14,38 +14,53 @@ def get_args():
     parser.add_argument("-u", "--user", required=True, help="User to run the command as", default="root")
     return parser.parse_args()
 
-def run_command(command):
-    # Run the command in the background using subprocess
-    subprocess.Popen(command, shell=True)
-    return command.split()[0] # Return the process name
+# def run_command(command):
+#     # Run the command in the background using subprocess
+#     process = subprocess.Popen(command, shell=True)
+#     process.send_signal(subprocess.signal.SIGSTOP)
+#     return process
 
-def run_trace(process, output):
-    print(f"Monitoring process: {process}")
-    pid = subprocess.Popen(["pgrep", process], stdout=subprocess.PIPE).stdout.read().decode("utf-8").strip()
+def run_trace(pid, process_name, output, **kwargs):
+    print("Monitoring process %d (%s) ..." % (pid, process_name))
+    if kwargs.get("process") is not None:
+        process = kwargs.get("process")
     exe_path = os.readlink(f"/proc/{pid}/exe")
     print(f"Executable path: {exe_path}")
-    bpf_command = f"python3 {os.path.abspath(__file__)}/main.py --data {output} --pid {pid} {exe_path}"
+    bpf_command = f"python3 {os.path.dirname(os.path.abspath(__file__))}/main.py --data {output} --pid {pid}"
     bpf_trace = subprocess.Popen(bpf_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+    #Resume the process
+    # if kwargs.get("process") is not None:
+    #     kwargs.get("process").send_signal(subprocess.signal.SIGCONT)
     stdout, stderr = bpf_trace.communicate()
     print(stdout.decode("utf-8"))
     print(stderr.decode("utf-8"))
+    
 
     return bpf_trace
 
 def main():
     args = get_args()
     if args.command is not None: 
-        process = run_command(args.command).strip()
+        process = subprocess.Popen(args.command, shell=True)
+        pid = process.pid
+        # process.send_signal(subprocess.signal.SIGSTOP)
+        process_name = args.command.split()[0]
+        
     else:
-        process = args.process
-    bpf_trace = run_trace(process, args.csv_output)
-
+        process_name = args.process
+        pid = subprocess.check_output(["pidof",process_name])
+    bpf_trace = run_trace(pid, process_name, args.csv_output, process=process)
+        
+    
     try:
         while True:
+            if not os.path.exists(f"/proc/{str(pid)}"):
+                print("Process is no longer active")
+                bpf_trace.kill()
+                exit()
             pass
     except KeyboardInterrupt:
         # Kill the process and the bpftrace script
-        pid = subprocess.Popen(["pgrep", process], stdout=subprocess.PIPE).stdout.read().decode("utf-8").strip()
         os.system(f"kill {pid}")
         bpf_trace.kill()
         print("Exiting...")
@@ -55,5 +70,5 @@ def main():
 if __name__ == "__main__":
     if os.getuid() != 0:
         print("This script must be run as root. Please use sudo.")
-        sys.exit(1)
+        exit(1)
     main()
