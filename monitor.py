@@ -11,6 +11,7 @@ def get_args():
     mexclusive_group.add_argument("-p", "--process", help="Process to monitor/trace")
     mexclusive_group.add_argument("-c", "--command", help="Command to trace")
     parser.add_argument("-o", "--csv-output", required=False, help="CSV file to write to")
+    parser.add_argument("-u", "--user", required=True, help="User to run the command as", default="root")
     return parser.parse_args()
 
 def run_command(command):
@@ -20,10 +21,10 @@ def run_command(command):
 
 def run_trace(process, output):
     print(f"Monitoring process: {process}")
+    pid = subprocess.Popen(["pgrep", process], stdout=subprocess.PIPE).stdout.read().decode("utf-8").strip()
     exe_path = os.readlink(f"/proc/{pid}/exe")
     print(f"Executable path: {exe_path}")
-    pid = subprocess.Popen(["pgrep", process], stdout=subprocess.PIPE).stdout.read().decode("utf-8").strip()
-    bpf_command = f"bpftrace -q procmon.bt -o {output} {pid} {exe_path}"
+    bpf_command = f"python3 {os.path.abspath(__file__)}/main.py --data {output} --pid {pid} {exe_path}"
     bpf_trace = subprocess.Popen(bpf_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     stdout, stderr = bpf_trace.communicate()
     print(stdout.decode("utf-8"))
@@ -52,4 +53,7 @@ def main():
 
 
 if __name__ == "__main__":
+    if os.getuid() != 0:
+        print("This script must be run as root. Please use sudo.")
+        sys.exit(1)
     main()
